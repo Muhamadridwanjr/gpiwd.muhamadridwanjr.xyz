@@ -781,16 +781,16 @@ async function doLogin(e){
   btn.textContent = 'AUTHENTICATING...';
 
   let ok = false;
-  // Try real API first
+  // Try real admin API first (GPIWD uses same admin auth as the main admin panel)
   try {
-    const r = await fetch(`${GW}/gpiwd/auth`, {
+    const r = await fetch(`${GW}/admin/auth/login`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({username:u, password:p}),
-      signal: AbortSignal.timeout(4000)
+      signal: AbortSignal.timeout(5000)
     });
     if(r.ok){
       const data = await r.json();
-      saveSession(data.token || 'gpiwd-demo', rem);
+      saveSession(data.token, rem);
       ok = true;
     }
   } catch {/* API unreachable — fall through to demo check */}
@@ -805,6 +805,7 @@ async function doLogin(e){
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appShell').classList.add('up');
     switchPlan('obsidian');
+    startRealPoll();
   } else {
     err.textContent = 'Invalid username or password';
     err.style.display = 'block';
@@ -835,6 +836,7 @@ function checkAutoLogin(){
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appShell').classList.add('up');
     switchPlan('obsidian');
+    startRealPoll();
   }
 }
 
@@ -1422,23 +1424,77 @@ function mNav(sec, btn){
 }
 
 // ═══════════════════════════════════════════════════════════
-//  REAL API POLLING (when online)
+//  REAL API POLLING — fetches live data from GPIWD backend
 // ═══════════════════════════════════════════════════════════
 async function pollApi(){
   const token = getToken();
   if(!token || token==='gpiwd-demo-token') return;
   try {
-    const r = await fetch(`${GW}/gpiwd/stats`, {
-      headers:{'Authorization':'Bearer '+token},
-      signal: AbortSignal.timeout(5000)
-    });
-    if(r.ok){
-      const d = await r.json();
-      // Update live numbers if API returns real data
-      if(d.blocked_today){const e=document.getElementById('sc-bl');if(e)e.textContent=Number(d.blocked_today).toLocaleString();}
-      if(d.ips_analyzed){const e=document.getElementById('sc-ip');if(e)e.textContent=Number(d.ips_analyzed).toLocaleString();}
+    const [statsRes, eventsRes] = await Promise.all([
+      fetch(`${GW}/admin/gpiwd/stats`, { headers:{'Authorization':'Bearer '+token}, signal:AbortSignal.timeout(6000) }),
+      fetch(`${GW}/admin/gpiwd/events?limit=20`, { headers:{'Authorization':'Bearer '+token}, signal:AbortSignal.timeout(6000) }),
+    ]);
+
+    if(statsRes.ok){
+      const d = await statsRes.json();
+      // Update blocked counter
+      const bl = document.getElementById('sc-bl');
+      if(bl) bl.textContent = (d.overview?.total_blocked||0).toLocaleString();
+      // Update passed/ips counter
+      const ip = document.getElementById('sc-ip');
+      if(ip) ip.textContent = ((d.overview?.total_passed||0) + (d.overview?.total_blocked||0)).toLocaleString();
+      // Show circuit breaker alerts
+      if(d.circuit_breakers){
+        const openCBs = d.circuit_breakers.filter(cb=>cb.state!=='closed');
+        if(openCBs.length){
+          openCBs.forEach(cb=>{
+            pushLog({ts:new Date().toISOString(), ip:'gateway', path:`/${cb.service}/*`, layer:'circuit_breaker', type:'SERVICE_DOWN', reason:`Circuit OPEN: ${cb.service}`});
+          });
+        }
+      }
+      // Update topbar live indicator
+      const liveEl = document.getElementById('live-count');
+      if(liveEl) liveEl.textContent = `${(d.overview?.total_blocked||0).toLocaleString()} blocked`;
     }
-  } catch {/* demo mode — ignore */}
+
+    if(eventsRes.ok){
+      const events = await eventsRes.json();
+      if(events && events.length){
+        // Push real events into log (newest first, skip if already shown)
+        events.slice(0,5).reverse().forEach(ev=>{
+          pushLog(ev);
+        });
+      }
+    }
+  } catch {/* demo mode or API unreachable — silent fail */}
+}
+
+// Push a real event into the event log UI
+function pushLog(ev){
+  const log = document.getElementById('evlog') || document.getElementById('logbody');
+  if(!log) return;
+  const typeColor = {
+    IP_BLACKLISTED:'red', RATE_LIMIT:'amber', ATTACK_PATTERN:'red',
+    AUTH_FAILED:'amber', AUTHZ_DENIED:'amber', ANOMALY_CRITICAL:'red',
+    AI_BLOCKED:'purple', SERVICE_DOWN:'red', MANUAL_BAN:'purple',
+  };
+  const c = typeColor[ev.type] || 'cyan';
+  const row = document.createElement('div');
+  row.className = 'lr new';
+  row.innerHTML = `<span class="lt">${new Date(ev.ts).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>`
+    + `<span class="li ${c==='red'?'lc-r':c==='amber'?'lc-a':c==='purple'?'lc-p':'lc-c'}">${ev.ip||'?'}</span>`
+    + `<span class="lm">${ev.layer?.toUpperCase()||'?'} — ${ev.type||''} ${ev.path||''}</span>`;
+  log.prepend(row);
+  // Keep max 60 rows
+  while(log.children.length > 60) log.removeChild(log.lastChild);
+  setTimeout(()=>row.classList.remove('new'), 800);
+}
+
+// Start real polling after login
+function startRealPoll(){
+  clearInterval(_apiFetch);
+  pollApi(); // immediate first fetch
+  _apiFetch = setInterval(pollApi, 30_000); // poll every 30s
 }
 
 // ═══════════════════════════════════════════════════════════
