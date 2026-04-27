@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPIWD — Security Operations Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&family=Barlow+Condensed:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════
+   DESIGN TOKENS — DARK / LIGHT
+═══════════════════════════════════════════════════════════ */
+:root {
+  --bg:      #040608;
+  --bg2:     #070c10;
+  --bg3:     #0a1018;
+  --panel:   #0d1520;
+  --panel2:  #101d2a;
+  --cyan:    #00e5ff;
+  --cyan2:   #67e8f9;
+  --cyan3:   rgba(0,229,255,.08);
+  --green:   #00ff88;
+  --red:     #ff3355;
+  --amber:   #ffb700;
+  --purple:  #a855f7;
+  --blue:    #3b82f6;
+  --white:   #e2eaf2;
+  --muted:   #4a6070;
+  --muted2:  #2a3a48;
+  --border:  rgba(0,229,255,.1);
+  --border2: rgba(255,255,255,.05);
+  --shadow:  0 4px 32px rgba(0,0,0,.6);
+  --glow:    0 0 24px rgba(0,229,255,.15);
+  --radius:  6px;
+  --f-ui:    'Inter', sans-serif;
+  --f-mono:  'JetBrains Mono', monospace;
+  --f-dsp:   'Barlow Condensed', sans-serif;
+}
+[data-theme="light"] {
+  --bg:      #f0f4f8;
+  --bg2:     #e6edf5;
+  --bg3:     #dce6f0;
+  --panel:   #ffffff;
+  --panel2:  #f5f8fc;
+  --cyan:    #0070e0;
+  --cyan2:   #2997ff;
+  --cyan3:   rgba(0,112,224,.06);
+  --green:   #009944;
+  --red:     #d70040;
+  --amber:   #cc7000;
+  --purple:  #7c3aed;
+  --blue:    #1d4ed8;
+  --white:   #0f172a;
+  --muted:   #64748b;
+  --muted2:  #dde6f0;
+  --border:  rgba(0,112,224,.14);
+  --border2: rgba(0,0,0,.06);
+  --shadow:  0 4px 24px rgba(0,0,0,.1);
+  --glow:    0 2px 14px rgba(0,112,224,.1);
+}
+
+/* ══════════════════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{
+  background:var(--bg);color:var(--white);
+  font-family:var(--f-ui);font-size:13px;
+  display:flex;flex-direction:column;
+  transition:background .35s,color .35s;
+}
+[data-theme="dark"] body::before{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,229,255,.007) 3px,rgba(0,229,255,.007) 4px);
+  pointer-events:none;z-index:9000;
+}
+
+/* ══════════════════════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════════════════════ */
+#loginScreen{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+#loginScreen::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse at 20% 50%,rgba(0,229,255,.07) 0%,transparent 55%),
+    radial-gradient(ellipse at 80% 15%,rgba(168,85,247,.06) 0%,transparent 55%),
+    radial-gradient(ellipse at 60% 85%,rgba(59,130,246,.05) 0%,transparent 50%);
+}
+[data-theme="light"] #loginScreen::before{
+  background:
+    radial-gradient(ellipse at 20% 50%,rgba(0,112,224,.07) 0%,transparent 55%),
+    radial-gradient(ellipse at 80% 15%,rgba(124,58,237,.05) 0%,transparent 55%);
+}
+.login-card{
+  position:relative;z-index:1;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:44px 40px 36px;
+  width:100%;max-width:400px;
+  box-shadow:var(--shadow),var(--glow);
+  animation:cardIn .4s cubic-bezier(.34,1.2,.64,1);
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
+
+.login-logo{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px;}
+.l-hex{
+  width:48px;height:48px;
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-dsp);font-size:13px;font-weight:800;color:#000;flex-shrink:0;
+}
+.l-brand{font-family:var(--f-dsp);font-size:30px;font-weight:900;letter-spacing:4px;color:var(--white);}
+.l-brand em{color:var(--cyan);font-style:normal;}
+.l-sub{text-align:center;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:32px;font-family:var(--f-mono);}
+
+.l-field{margin-bottom:14px;}
+.l-field label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-family:var(--f-mono);}
+.l-field input{
+  width:100%;padding:12px 14px;
+  background:var(--bg2);border:1px solid var(--border);
+  color:var(--white);font-family:var(--f-mono);font-size:13px;
+  border-radius:var(--radius);outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.l-field input::placeholder{color:var(--muted);}
+.l-field input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.1);}
+[data-theme="light"] .l-field input:focus{box-shadow:0 0 0 3px rgba(0,112,224,.1);}
+
+.l-remember{display:flex;align-items:center;gap:8px;margin-bottom:20px;cursor:pointer;width:fit-content;}
+.l-remember input{accent-color:var(--cyan);width:14px;height:14px;}
+.l-remember span{font-size:11px;color:var(--muted);font-family:var(--f-mono);}
+
+.l-btn{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  border:none;border-radius:var(--radius);
+  color:#000;font-family:var(--f-dsp);font-size:16px;font-weight:800;
+  letter-spacing:3px;text-transform:uppercase;
+  cursor:pointer;transition:opacity .2s,transform .15s;
+}
+.l-btn:hover{opacity:.9;}
+.l-btn:active{transform:scale(.98);}
+.l-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.l-error{
+  margin-top:12px;padding:10px 14px;
+  background:rgba(255,51,85,.08);border:1px solid rgba(255,51,85,.2);
+  color:var(--red);font-size:11px;font-family:var(--f-mono);
+  border-radius:var(--radius);display:none;text-align:center;
+}
+.l-hint{
+  margin-top:20px;padding:10px 14px;text-align:center;
+  font-size:10px;letter-spacing:1px;color:var(--muted);font-family:var(--f-mono);
+  background:var(--cyan3);border:1px solid var(--border);border-radius:var(--radius);
+}
+.l-hint strong{color:var(--cyan);}
+.l-badges{display:flex;justify-content:center;gap:14px;margin-top:16px;}
+.l-badge{font-size:9px;letter-spacing:1px;color:var(--muted);font-family:var(--f-mono);display:flex;align-items:center;gap:4px;}
+.l-badge::before{content:'✓';color:var(--green);}
+
+.l-theme{
+  position:absolute;top:16px;right:16px;
+  width:34px;height:34px;
+  background:none;border:1px solid var(--border);
+  color:var(--muted);border-radius:8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  transition:all .2s;
+}
+.l-theme:hover{border-color:var(--cyan);color:var(--cyan);}
+
+/* ══════════════════════════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════════════════════════ */
+#appShell{display:none;flex-direction:column;height:100%;overflow:hidden;}
+#appShell.up{display:flex;}
+
+/* ══════════════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════════════ */
+.hdr{
+  height:52px;flex-shrink:0;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;position:relative;z-index:100;gap:12px;
+}
+.hdr-l{display:flex;align-items:center;gap:14px;flex:1;min-width:0;}
+.hdr-logo{display:flex;align-items:center;gap:9px;flex-shrink:0;text-decoration:none;}
+.hdr-hex{
+  width:28px;height:28px;
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:8px;font-weight:700;color:#000;flex-shrink:0;
+}
+.hdr-name{font-family:var(--f-dsp);font-size:18px;font-weight:800;letter-spacing:2px;color:var(--white);}
+.hdr-name em{color:var(--cyan);font-style:normal;}
+.hdr-status{
+  display:flex;align-items:center;gap:6px;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-family:var(--f-mono);
+}
+.h-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;animation:dotPulse 2s infinite;}
+@keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,.4)}50%{box-shadow:0 0 0 5px rgba(0,255,136,0)}}
+[data-theme="light"] .h-dot{animation-name:dotPulseL;}
+@keyframes dotPulseL{0%,100%{box-shadow:0 0 0 0 rgba(0,153,68,.3)}50%{box-shadow:0 0 0 5px rgba(0,153,68,0)}}
+
+.hdr-c{position:absolute;left:50%;transform:translateX(-50%);text-align:center;}
+.hdr-clock{font-size:15px;font-weight:700;color:var(--cyan);letter-spacing:2px;font-family:var(--f-mono);}
+.hdr-date{font-size:9px;color:var(--muted);letter-spacing:1px;font-family:var(--f-mono);margin-top:1px;}
+
+.hdr-r{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.hdr-soc{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-family:var(--f-mono);}
+
+.btn-icon{
+  width:34px;height:34px;border-radius:8px;
+  background:none;border:1px solid var(--border);
+  color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  transition:all .2s;flex-shrink:0;
+}
+.btn-icon:hover{border-color:var(--cyan);color:var(--cyan);}
+.btn-logout{
+  height:34px;padding:0 14px;border-radius:8px;
+  background:rgba(255,51,85,.07);border:1px solid rgba(255,51,85,.2);
+  color:var(--red);cursor:pointer;
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:var(--f-mono);
+  transition:all .2s;flex-shrink:0;
+}
+.btn-logout:hover{background:rgba(255,51,85,.14);}
+
+/* ══════════════════════════════════════════════════════════
+   PLAN TABS
+═══════════════════════════════════════════════════════════ */
+.ptabs{
+  height:44px;flex-shrink:0;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:stretch;padding:0 20px;gap:2px;
+  overflow-x:auto;scrollbar-width:none;
+}
+.ptabs::-webkit-scrollbar{display:none;}
+.pt{
+  display:flex;align-items:center;gap:8px;padding:0 18px;
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;
+  background:none;border-top:none;border-left:none;border-right:none;
+  transition:color .2s,border-color .2s;white-space:nowrap;font-family:var(--f-mono);
+}
+.pt:hover{color:var(--white);}
+.pt.on{color:var(--cyan);border-bottom-color:var(--cyan);}
+.pt-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:box-shadow .3s;}
+.pt-s .pt-dot{background:#64748b;}
+.pt-p .pt-dot{background:#00e5ff;}
+.pt-a .pt-dot{background:#00ff88;}
+.pt-o .pt-dot{background:#a855f7;}
+.pt.on .pt-dot{box-shadow:0 0 8px currentColor;}
+.p-layers{
+  margin-left:auto;align-self:center;flex-shrink:0;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;font-family:var(--f-mono);
+  padding:3px 10px;border-radius:4px;
+  background:var(--cyan3);border:1px solid var(--border);color:var(--cyan);
+}
+
+/* ══════════════════════════════════════════════════════════
+   DASHBOARD GRID
+═══════════════════════════════════════════════════════════ */
+.dash{flex:1;overflow:hidden;display:grid;gap:1px;background:var(--border2);padding:1px;}
+.panel{
+  background:var(--panel);padding:13px 15px;
+  position:relative;overflow:hidden;display:flex;flex-direction:column;
+  transition:background .35s;
+}
+.panel::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,var(--cyan),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.panel:hover::after{opacity:.4;}
+.ptitle{
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:10px;flex-shrink:0;
+  display:flex;align-items:center;gap:6px;font-family:var(--f-mono);
+}
+.ptitle::before{content:'//';color:var(--cyan);opacity:.45;}
+
+/* ══════════════════════════════════════════════════════════
+   STAT NUMBERS
+═══════════════════════════════════════════════════════════ */
+.n-big{
+  font-family:var(--f-dsp);font-size:clamp(28px,3vw,50px);
+  font-weight:900;line-height:1;color:var(--white);
+}
+.n-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:5px;font-family:var(--f-mono);}
+.n-delta{font-size:10px;margin-top:6px;font-family:var(--f-mono);}
+.delta-up{color:var(--red);}
+.delta-dn{color:var(--green);}
+
+/* ══════════════════════════════════════════════════════════
+   THREAT LOG
+═══════════════════════════════════════════════════════════ */
+.logfeed{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:2px;}
+.le{
+  display:flex;align-items:center;gap:7px;
+  font-size:10px;line-height:1.6;padding:3px 0;
+  border-bottom:1px solid rgba(255,255,255,.02);
+  animation:fadeIn .3s ease both;flex-shrink:0;font-family:var(--f-mono);
+}
+[data-theme="light"] .le{border-bottom-color:rgba(0,0,0,.04);}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.lt{color:var(--muted);flex-shrink:0;font-size:9px;}
+.lb{font-size:8px;letter-spacing:.5px;padding:2px 6px;flex-shrink:0;font-weight:700;border-radius:3px;}
+.lb-bl{background:rgba(255,51,85,.14);color:var(--red);}
+.lb-wn{background:rgba(255,183,0,.12);color:var(--amber);}
+.lb-ok{background:rgba(0,255,136,.1);color:var(--green);}
+.lb-ai{background:rgba(168,85,247,.14);color:var(--purple);}
+.lb-hp{background:rgba(255,107,0,.12);color:#ff6b00;}
+.lip{color:var(--cyan2);flex-shrink:0;}
+.lmsg{color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lcc{color:var(--muted);font-size:9px;flex-shrink:0;}
+
+/* ══════════════════════════════════════════════════════════
+   LAYER DOTS
+═══════════════════════════════════════════════════════════ */
+.lv{display:flex;flex-wrap:wrap;gap:2px;flex:1;align-content:flex-start;}
+.ld{width:8px;height:8px;border-radius:2px;background:rgba(0,229,255,.1);transition:background .3s;}
+.ld.on{background:var(--cyan);}
+.ld.off{background:var(--muted2);opacity:.3;}
+
+/* ══════════════════════════════════════════════════════════
+   PROGRESS BARS
+═══════════════════════════════════════════════════════════ */
+.plist{display:flex;flex-direction:column;gap:9px;flex:1;}
+.prow{}
+.phd{display:flex;justify-content:space-between;margin-bottom:4px;}
+.pname{font-size:10px;color:var(--muted);font-family:var(--f-mono);}
+.pval{font-size:10px;font-family:var(--f-mono);}
+.ptr{height:3px;background:var(--muted2);border-radius:2px;overflow:hidden;}
+.pfill{height:100%;border-radius:2px;transition:width 1.5s ease;}
+
+/* ══════════════════════════════════════════════════════════
+   IP PLATFORMS
+═══════════════════════════════════════════════════════════ */
+.ipl{display:flex;flex-direction:column;gap:4px;flex:1;}
+.ip-row{
+  display:flex;align-items:center;gap:8px;padding:5px 8px;
+  background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.07);border-radius:4px;
+}
+.ip-n{font-size:9px;color:var(--muted);flex:1;font-family:var(--f-mono);}
+.ip-s{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;}
+.s-ok{color:var(--green);background:rgba(0,255,136,.08);}
+.s-wn{color:var(--amber);background:rgba(255,183,0,.08);}
+.s-bd{color:var(--red);background:rgba(255,51,85,.08);}
+.ip-bar{width:56px;height:3px;background:var(--muted2);border-radius:2px;overflow:hidden;}
+.ip-fill{height:100%;border-radius:2px;transition:width 1s ease;}
+.fc-g{background:var(--green);}
+.fc-a{background:var(--amber);}
+.fc-r{background:var(--red);}
+
+/* ══════════════════════════════════════════════════════════
+   IMMUNE CELLS
+═══════════════════════════════════════════════════════════ */
+.imgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:1;}
+.ic{
+  background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.08);
+  padding:8px;border-radius:4px;
+  display:flex;flex-direction:column;gap:3px;position:relative;overflow:hidden;
+}
+.ic.ok{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.03);}
+.ic.fire{border-color:rgba(168,85,247,.35);background:rgba(168,85,247,.04);}
+.ic.alrt{border-color:rgba(255,51,85,.35);background:rgba(255,51,85,.04);}
+.ic-lbl{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-family:var(--f-mono);}
+.ic-st{font-size:10px;font-weight:700;font-family:var(--f-mono);}
+.ic-st.ok{color:var(--green);}
+.ic-st.fire{color:var(--purple);}
+.ic-st.alrt{color:var(--red);}
+.ic-sub{font-size:9px;color:var(--muted);font-family:var(--f-mono);}
+.ic-ping{
+  position:absolute;top:6px;right:6px;
+  width:5px;height:5px;border-radius:50%;
+}
+.ping-g{background:var(--green);animation:ppg 2s infinite;}
+.ping-p{background:var(--purple);animation:ppp 1.5s infinite;}
+.ping-r{background:var(--red);animation:ppr 1s infinite;}
+@keyframes ppg{0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,.4)}50%{box-shadow:0 0 0 4px rgba(0,255,136,0)}}
+@keyframes ppp{0%,100%{box-shadow:0 0 0 0 rgba(168,85,247,.4)}50%{box-shadow:0 0 0 4px rgba(168,85,247,0)}}
+@keyframes ppr{0%,100%{box-shadow:0 0 0 0 rgba(255,51,85,.4)}50%{box-shadow:0 0 0 4px rgba(255,51,85,0)}}
+
+/* ══════════════════════════════════════════════════════════
+   GEO BLOCKS
+═══════════════════════════════════════════════════════════ */
+.geolist{display:flex;flex-direction:column;gap:4px;flex:1;overflow:hidden;}
+.geo-r{
+  display:flex;align-items:center;gap:8px;padding:4px 0;
+  border-bottom:1px solid rgba(255,255,255,.025);font-family:var(--f-mono);font-size:10px;
+}
+[data-theme="light"] .geo-r{border-bottom-color:rgba(0,0,0,.04);}
+.geo-r .flag{font-size:14px;flex-shrink:0;}
+.geo-r .cn{color:var(--white);flex:1;}
+.geo-r .ct{color:var(--red);font-weight:700;}
+.geo-r .gb{width:48px;height:2px;background:var(--muted2);border-radius:1px;overflow:hidden;}
+.geo-r .gf{height:100%;background:var(--red);}
+
+/* ══════════════════════════════════════════════════════════
+   AI LOG
+═══════════════════════════════════════════════════════════ */
+.ailog{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px;}
+.ai-e{
+  font-size:10px;padding:6px 10px;border-radius:0 4px 4px 0;
+  background:rgba(168,85,247,.04);
+  border-left:2px solid rgba(168,85,247,.35);
+  color:var(--muted);animation:fadeIn .3s ease both;
+  line-height:1.55;font-family:var(--f-mono);
+}
+.ai-v{font-weight:700;}
+
+/* ══════════════════════════════════════════════════════════
+   HONEYPOT
+═══════════════════════════════════════════════════════════ */
+.hplog{flex:1;display:flex;flex-direction:column;gap:4px;overflow:hidden;}
+.hp-e{
+  font-size:9px;padding:5px 9px;border-radius:0 4px 4px 0;
+  background:rgba(255,107,0,.04);
+  border-left:2px solid rgba(255,107,0,.4);
+  color:var(--muted);animation:fadeIn .3s ease both;font-family:var(--f-mono);
+}
+.hp-e .hv{color:#ff6b00;font-weight:700;}
+
+/* ══════════════════════════════════════════════════════════
+   NODES (HA)
+═══════════════════════════════════════════════════════════ */
+.ngrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;}
+.nd{background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.08);padding:9px;border-radius:4px;}
+.nd.pri{border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.03);}
+.nd.sby{border-color:rgba(255,183,0,.2);background:rgba(255,183,0,.02);}
+.nd-n{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-family:var(--f-mono);}
+.nd-s{font-size:10px;font-weight:700;font-family:var(--f-mono);}
+.s-on{color:var(--green);}
+.s-sb{color:var(--amber);}
+.nd-p{font-size:9px;color:var(--muted);margin-top:2px;font-family:var(--f-mono);}
+
+/* ══════════════════════════════════════════════════════════
+   ALERT STRIP
+═══════════════════════════════════════════════════════════ */
+.astrip{
+  height:26px;flex-shrink:0;
+  background:rgba(255,51,85,.06);border-top:1px solid rgba(255,51,85,.15);
+  display:flex;align-items:center;padding:0 20px;
+  font-size:10px;font-family:var(--f-mono);overflow:hidden;
+}
+.astrip.ok{background:rgba(0,255,136,.04);border-top-color:rgba(0,255,136,.1);}
+[data-theme="light"] .astrip{background:rgba(215,0,64,.04);border-top-color:rgba(215,0,64,.1);}
+[data-theme="light"] .astrip.ok{background:rgba(0,153,68,.04);}
+.atick{white-space:nowrap;animation:scroll 45s linear infinite;}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.as{color:var(--muted);margin:0 18px;}
+.a-r{color:var(--red);}
+.a-g{color:var(--green);}
+.a-c{color:var(--cyan);}
+.a-a{color:var(--amber);}
+.a-p{color:var(--purple);}
+
+/* ══════════════════════════════════════════════════════════
+   SPARKLINE
+═══════════════════════════════════════════════════════════ */
+.spark{width:100%;height:38px;}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE BOTTOM NAV
+═══════════════════════════════════════════════════════════ */
+.bnav{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:800;
+  background:rgba(4,6,8,.96);backdrop-filter:blur(24px) saturate(200%);
+  -webkit-backdrop-filter:blur(24px) saturate(200%);
+  border-top:1px solid var(--border);
+  padding:6px 0 calc(6px + env(safe-area-inset-bottom));
+  box-shadow:0 -12px 40px rgba(0,0,0,.5);
+}
+[data-theme="light"] .bnav{background:rgba(240,244,248,.96);}
+.bnav-in{display:flex;align-items:center;justify-content:space-around;max-width:500px;margin:0 auto;padding:0 4px;}
+.bn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;
+  color:rgba(255,255,255,.38);font-size:9px;font-weight:500;
+  letter-spacing:.5px;text-transform:uppercase;
+  padding:6px 10px;border-radius:10px;cursor:pointer;
+  transition:color .2s,transform .15s;
+  -webkit-tap-highlight-color:transparent;min-width:52px;font-family:var(--f-mono);
+}
+[data-theme="light"] .bn{color:rgba(15,23,42,.35);}
+.bn svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.8;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1);}
+.bn:active svg{transform:scale(.85);}
+.bn.act{font-weight:600;}.bn.act svg{transform:scale(1.1);}
+.bn-1.act{color:var(--red);}
+.bn-2.act{color:var(--cyan);}
+.bn-3.act{color:var(--green);}
+.bn-4.act{color:var(--purple);}
+.bn-5.act{color:var(--amber);}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE MOBILE
+═══════════════════════════════════════════════════════════ */
+@media(max-width:960px){
+  html,body{overflow:auto !important;}
+  .dash{
+    overflow-y:auto !important;display:flex !important;flex-direction:column;
+    height:auto;gap:1px;padding-bottom:calc(80px + env(safe-area-inset-bottom));
+  }
+  .dash .panel{
+    grid-column:unset !important;grid-row:unset !important;
+    min-height:160px;
+  }
+  .hdr-c{display:none;}
+  .hdr-soc{display:none;}
+  .ptabs{padding:0 10px;height:40px;}
+  .pt{padding:0 10px;font-size:9px;}
+  .p-layers{display:none;}
+  .bnav{display:block;}
+  .hdr{padding:0 14px;height:48px;}
+}
+@media(max-width:580px){
+  .hdr-status{display:none;}
+  .login-card{padding:28px 22px 24px;}
+  .l-brand{font-size:24px;}
+  .l-hex{width:40px;height:40px;}
+}
+
+/* ══════════════════════════════════════════════════════════
+   PLAN INDICATOR (watermark)
+═══════════════════════════════════════════════════════════ */
+.pind{
+  position:absolute;bottom:6px;right:8px;
+  font-size:8px;letter-spacing:2px;text-transform:uppercase;
+  opacity:.15;font-family:var(--f-mono);pointer-events:none;
+}
+/* loading spinner */
+.loading{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--muted);font-size:11px;font-family:var(--f-mono);
+}
+.spin{
+  width:16px;height:16px;border:2px solid var(--muted2);
+  border-top-color:var(--cyan);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <button class="l-theme" onclick="toggleTheme()" title="Toggle theme">
+      <span id="themeIconL">☀️</span>
+    </button>
+
+    <div class="login-logo">
+      <div class="l-hex">GP</div>
+      <div class="l-brand">GPIWD<em>.</em></div>
+    </div>
+    <div class="l-sub">Security Operations Centre</div>
+
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <div class="l-field">
+        <label>Username</label>
+        <input type="text" id="lu" autocomplete="username" placeholder="admin" required>
+      </div>
+      <div class="l-field">
+        <label>Password</label>
+        <input type="password" id="lp" autocomplete="current-password" placeholder="••••••••" required>
+      </div>
+      <label class="l-remember">
+        <input type="checkbox" id="lrem"> <span>Remember session</span>
+      </label>
+      <button type="submit" class="l-btn" id="loginBtn">ACCESS DASHBOARD</button>
+    </form>
+
+    <div class="l-error" id="loginErr"></div>
+    <div class="l-hint">Demo — user: <strong>admin</strong> &nbsp;|&nbsp; pass: <strong>gpiwd2025</strong></div>
+    <div class="l-badges">
+      <span class="l-badge">TLS 1.3</span>
+      <span class="l-badge">AES-256</span>
+      <span class="l-badge">Zero Trust</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ APP SHELL ═══════════════ -->
+<div id="appShell">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-l">
+      <div class="hdr-logo">
+        <div class="hdr-hex">GP</div>
+        <div class="hdr-name">GPIWD<em>.</em></div>
+      </div>
+      <div class="hdr-status">
+        <div class="h-dot"></div>
+        <span>All Systems Operational</span>
+      </div>
+    </div>
+    <div class="hdr-c">
+      <div class="hdr-clock" id="clock">--:--:--</div>
+      <div class="hdr-date" id="clockDate">---</div>
+    </div>
+    <div class="hdr-r">
+      <span class="hdr-soc">Security Ops Centre</span>
+      <button class="btn-icon" onclick="toggleTheme()" title="Toggle theme">
+        <span id="themeIconH">☀️</span>
+      </button>
+      <button class="btn-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- PLAN TABS -->
+  <div class="ptabs">
+    <button class="pt pt-s" onclick="switchPlan('sentinel')">
+      <div class="pt-dot"></div>Sentinel
+    </button>
+    <button class="pt pt-p" onclick="switchPlan('phantom')">
+      <div class="pt-dot"></div>Phantom
+    </button>
+    <button class="pt pt-a" onclick="switchPlan('aegis')">
+      <div class="pt-dot"></div>Aegis
+    </button>
+    <button class="pt pt-o on" onclick="switchPlan('obsidian')">
+      <div class="pt-dot"></div>Obsidian
+    </button>
+    <div class="p-layers" id="planLayers">100+ layers active</div>
+  </div>
+
+  <!-- DASHBOARD GRID -->
+  <div class="dash" id="dash"></div>
+
+  <!-- ALERT STRIP -->
+  <div class="astrip" id="astrip">
+    <span class="atick" id="atick"></span>
+  </div>
+
+</div><!-- /appShell -->
+
+<!-- MOBILE BOTTOM NAV -->
+<div class="bnav" id="bnavGpiwd">
+  <div class="bnav-in">
+    <button class="bn bn-1 act" onclick="mNav('log',this)" aria-label="Log">
+      <svg viewBox="0 0 24 24"><path d="M9 12h6M9 8h6M9 16h4M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+      <span>Log</span>
+    </button>
+    <button class="bn bn-2" onclick="mNav('stats',this)" aria-label="Stats">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>Stats</span>
+    </button>
+    <button class="bn bn-3" onclick="mNav('immune',this)" aria-label="Immune">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Immune</span>
+    </button>
+    <button class="bn bn-4" onclick="mNav('ai',this)" aria-label="AI">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      <span>AI</span>
+    </button>
+    <button class="bn bn-5" onclick="mNav('config',this)" aria-label="Config">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <span>Config</span>
+    </button>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
+const GW = 'https://goldendragon.muhamadridwanjr.xyz';
+const DEMO_USER = 'admin';
+const DEMO_PASS = 'gpiwd2025';
+let currentPlan = 'obsidian';
+let _logTick, _ctrTick, _aiTick, _apiFetch;
+
+// ═══════════════════════════════════════════════════════════
+//  DEMO DATA
+// ═══════════════════════════════════════════════════════════
+const LOGS = [
+  {b:'bl',msg:'SQLi attempt — UNION SELECT payload detected',ip:'185.220.101.47',cc:'🇷🇺 RU'},
+  {b:'bl',msg:'Port scan SYN flood — 2400 pkts/min',ip:'45.142.212.100',cc:'🇨🇳 CN'},
+  {b:'wn',msg:'Rate limit triggered — 342 req/60s',ip:'103.25.8.15',cc:'🇮🇩 ID'},
+  {b:'bl',msg:'TOR exit node — IP blacklisted',ip:'185.100.87.207',cc:'🇩🇪 DE'},
+  {b:'bl',msg:'XSS payload in User-Agent header',ip:'91.108.4.100',cc:'🇺🇦 UA'},
+  {b:'ai',msg:'Behavioral anomaly — bot cluster fingerprint',ip:'192.168.1.42',cc:'🇺🇸 US'},
+  {b:'bl',msg:'Brute force — 847 passwords in 120s',ip:'5.188.10.76',cc:'🇧🇷 BR'},
+  {b:'ok',msg:'Legitimate CDN edge — all layers passed',ip:'140.82.118.3',cc:'🇺🇸 US'},
+  {b:'bl',msg:'Path traversal /../../../etc/passwd',ip:'37.49.224.15',cc:'🇳🇱 NL'},
+  {b:'wn',msg:'Suspicious scanner User-Agent (dirbuster)',ip:'194.165.16.31',cc:'🇫🇷 FR'},
+  {b:'bl',msg:'SSRF attempt on internal endpoint',ip:'104.21.44.5',cc:'🇨🇦 CA'},
+  {b:'ai',msg:'Command injection variant — unicode-encoded',ip:'78.110.175.50',cc:'🇵🇱 PL'},
+  {b:'bl',msg:'DDoS UDP amplification flood detected',ip:'1.179.112.0',cc:'🇻🇳 VN'},
+  {b:'hp',msg:'Honeypot /wp-admin/login.php triggered',ip:'45.61.185.4',cc:'🇷🇴 RO'},
+  {b:'bl',msg:'VPN IP (AbuseIPDB: 97) — permaban',ip:'198.96.247.13',cc:'🇬🇧 GB'},
+  {b:'ok',msg:'Verified CDN node — whitelist pass',ip:'104.16.0.1',cc:'🌐 CF'},
+  {b:'bl',msg:'XXE injection in XML Content-Type body',ip:'79.137.194.1',cc:'🇪🇸 ES'},
+  {b:'ai',msg:'Slow loris pattern — preemptive block at Layer 5',ip:'31.13.92.36',cc:'🇸🇬 SG'},
+];
+const GEO = [
+  {f:'🇷🇺',c:'Russia',n:1847,p:82},
+  {f:'🇨🇳',c:'China',n:1203,p:68},
+  {f:'🇧🇷',c:'Brazil',n:441,p:35},
+  {f:'🇺🇦',c:'Ukraine',n:388,p:30},
+  {f:'🇳🇱',c:'Netherlands',n:220,p:20},
+  {f:'🇩🇪',c:'Germany',n:198,p:18},
+];
+const HONEY = [
+  {m:'POST',p:'/wp-admin/login.php',a:'Captured — credentials logged'},
+  {m:'GET', p:'/.env',a:'Fed fake API keys'},
+  {m:'GET', p:'/phpmyadmin/',a:'Loop redirect deployed'},
+  {m:'POST',p:'/admin/config.php',a:'Tarpit 30s injected'},
+  {m:'GET', p:'/api/v1/users/dump',a:'Misinformation payload sent'},
+];
+const AI_EVENTS = [
+  {v:'BLOCK',c:98,msg:'Behavioral fingerprint: botnet cluster #4471. Shannon entropy 0.92 — automated tool confirmed.'},
+  {v:'WARN', c:79,msg:'3 platforms flagged. PTR record suspicious. Pattern: recon phase active.'},
+  {v:'BLOCK',c:95,msg:'WAF bypass via unicode encoding. Payload mutation detected. Auto-rule generated.'},
+  {v:'OK',   c:100,msg:'Verified CDN node. TLS fingerprint matches known-good. Zero threat indicators.'},
+  {v:'BLOCK',c:99,msg:'Credential stuffing — 847 unique passwords in 120s. IP cluster banned.'},
+];
+
+// ═══════════════════════════════════════════════════════════
+//  THEME
+// ═══════════════════════════════════════════════════════════
+function toggleTheme(){
+  const d = document.documentElement;
+  const dark = d.getAttribute('data-theme') === 'dark';
+  d.setAttribute('data-theme', dark ? 'light' : 'dark');
+  localStorage.setItem('gpiwd-theme', dark ? 'light' : 'dark');
+  updateThemeIcons();
+}
+function updateThemeIcons(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const ico = dark ? '☀️' : '🌙';
+  document.querySelectorAll('[id^=themeIcon]').forEach(e => e.textContent = ico);
+}
+function initTheme(){
+  const t = localStorage.getItem('gpiwd-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  updateThemeIcons();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CLOCK
+// ═══════════════════════════════════════════════════════════
+function tickClock(){
+  const n = new Date();
+  const el = document.getElementById('clock');
+  const ed = document.getElementById('clockDate');
+  if(el) el.textContent = n.toTimeString().slice(0,8) + ' WIB';
+  if(ed) ed.textContent = n.toLocaleDateString('id-ID',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ═══════════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════════
+async function doLogin(e){
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginErr');
+  const u = document.getElementById('lu').value.trim();
+  const p = document.getElementById('lp').value;
+  const rem = document.getElementById('lrem').checked;
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'AUTHENTICATING...';
+
+  let ok = false;
+  // Try real API first
+  try {
+    const r = await fetch(`${GW}/gpiwd/auth`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:u, password:p}),
+      signal: AbortSignal.timeout(4000)
+    });
+    if(r.ok){
+      const data = await r.json();
+      saveSession(data.token || 'gpiwd-demo', rem);
+      ok = true;
+    }
+  } catch {/* API unreachable — fall through to demo check */}
+
+  // Demo fallback
+  if(!ok && u === DEMO_USER && p === DEMO_PASS){
+    saveSession('gpiwd-demo-token', rem);
+    ok = true;
+  }
+
+  if(ok){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').classList.add('up');
+    switchPlan('obsidian');
+  } else {
+    err.textContent = 'Invalid username or password';
+    err.style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.textContent = 'ACCESS DASHBOARD';
+}
+
+function saveSession(token, remember){
+  if(remember) localStorage.setItem('gpiwd-token', token);
+  else sessionStorage.setItem('gpiwd-token', token);
+}
+
+function getToken(){
+  return localStorage.getItem('gpiwd-token') || sessionStorage.getItem('gpiwd-token');
+}
+
+function doLogout(){
+  localStorage.removeItem('gpiwd-token');
+  sessionStorage.removeItem('gpiwd-token');
+  [_logTick, _ctrTick, _aiTick, _apiFetch].forEach(clearInterval);
+  document.getElementById('appShell').classList.remove('up');
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function checkAutoLogin(){
+  if(getToken()){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').classList.add('up');
+    switchPlan('obsidian');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PLAN SWITCHER
+// ═══════════════════════════════════════════════════════════
+function switchPlan(p){
+  currentPlan = p;
+  [_logTick, _ctrTick, _aiTick].forEach(clearInterval);
+  document.querySelectorAll('.pt').forEach(t => t.classList.remove('on'));
+  document.querySelector(`.pt-${p[0]}`).classList.add('on');
+  const layers = {sentinel:'30 / 100',phantom:'70 / 100',aegis:'100 / 100',obsidian:'120+ custom'};
+  const lel = document.getElementById('planLayers');
+  if(lel) lel.textContent = layers[p] + ' layers';
+  renderPlan(p);
+  setTicker(p);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER DISPATCHER
+// ═══════════════════════════════════════════════════════════
+function renderPlan(p){
+  const g = document.getElementById('dash');
+  g.innerHTML = '';
+  g.style.cssText = '';
+  if(p==='sentinel') rSentinel(g);
+  else if(p==='phantom') rPhantom(g);
+  else if(p==='aegis') rAegis(g);
+  else rObsidian(g);
+}
+
+// ─────────────────────── helpers ───────────────────────────
+function mkPanel(title, gc=''){
+  const d = document.createElement('div');
+  d.className = 'panel';
+  if(gc) d.style.cssText = gc;
+  const t = document.createElement('div');
+  t.className = 'ptitle';
+  t.textContent = title;
+  d.appendChild(t);
+  return d;
+}
+function mkStat(label, id, color='white'){
+  const p = mkPanel(label);
+  const v = document.createElement('div');
+  v.id = id; v.className = 'n-big';
+  v.style.color = `var(--${color})`;
+  v.textContent = '0';
+  p.appendChild(v);
+  return p;
+}
+function mkLogPanel(title, gc=''){
+  const p = mkPanel(title, gc);
+  const f = document.createElement('div');
+  f.className = 'logfeed'; f.id = 'logfeed';
+  p.appendChild(f); return p;
+}
+function addLog(feed){
+  if(!feed) return;
+  const d = LOGS[(_lp++)%LOGS.length];
+  const ts = new Date().toTimeString().slice(0,8);
+  const cls = {bl:'lb-bl',wn:'lb-wn',ok:'lb-ok',ai:'lb-ai',hp:'lb-hp'};
+  const lbl = {bl:'BLOCK',wn:'WARN',ok:'PASS',ai:'AI',hp:'TRAP'};
+  const e = document.createElement('div'); e.className = 'le';
+  e.innerHTML = `<span class="lt">${ts}</span><span class="lb ${cls[d.b]}">${lbl[d.b]}</span><span class="lip">${d.ip}</span><span class="lmsg">${d.msg}</span><span class="lcc">${d.cc}</span>`;
+  feed.insertBefore(e, feed.firstChild);
+  while(feed.children.length > 20) feed.removeChild(feed.lastChild);
+}
+let _lp = 0;
+
+function mkLayerDots(count, active, colors=null){
+  const w = document.createElement('div'); w.className = 'lv';
+  for(let i=0;i<count;i++){
+    const d = document.createElement('div');
+    d.className = 'ld' + (i<active?' on':' off');
+    if(colors && i<active){
+      const ci = colors.findIndex(([max]) => i < max);
+      if(ci>=0) d.style.background = colors[ci][1];
+    }
+    w.appendChild(d);
+  }
+  return w;
+}
+
+function mkGeo(sliceN=4){
+  const l = document.createElement('div'); l.className = 'geolist';
+  GEO.slice(0,sliceN).forEach(g=>{
+    const r = document.createElement('div'); r.className = 'geo-r';
+    r.innerHTML = `<span class="flag">${g.f}</span><span class="cn">${g.c}</span><span class="ct">${g.n.toLocaleString()}</span><div class="gb"><div class="gf" style="width:${g.p}%"></div></div>`;
+    l.appendChild(r);
+  });
+  return l;
+}
+
+function mkIpPlats(rows){
+  const c = document.createElement('div'); c.className = 'ipl';
+  rows.forEach(r=>{
+    c.innerHTML += `<div class="ip-row"><span class="ip-n">${r.n}</span><span class="ip-s ${r.c}">${r.s}</span><div class="ip-bar"><div class="ip-fill ${r.f}" style="width:${r.p}%"></div></div></div>`;
+  });
+  return c;
+}
+
+function mkProg(rows){
+  const c = document.createElement('div'); c.className = 'plist';
+  rows.forEach(r=>{
+    c.innerHTML += `<div class="prow"><div class="phd"><span class="pname">${r.n}</span><span class="pval" style="color:${r.c||'var(--green)'}">${r.v}%</span></div><div class="ptr"><div class="pfill" style="width:${r.v}%;background:${r.c||'var(--green)'}"></div></div></div>`;
+  });
+  return c;
+}
+
+function mkImmune(cells){
+  const g = document.createElement('div'); g.className = 'imgrid';
+  cells.forEach(c=>{
+    g.innerHTML += `<div class="ic ${c.cls}"><div class="ic-ping ping-${c.p}"></div><div class="ic-lbl">${c.n}</div><div class="ic-st ${c.cls==='fire'?'fire':c.cls==='alrt'?'alrt':'ok'}">${c.st}</div><div class="ic-sub">${c.sub}</div></div>`;
+  });
+  return g;
+}
+
+function animNum(id, target, dur=1400){
+  const el = document.getElementById(id); if(!el) return;
+  let cur = 0; const step = target/(dur/16);
+  const t = setInterval(()=>{
+    cur += step; if(cur>=target){clearInterval(t);cur=target;}
+    el.textContent = Math.floor(cur).toLocaleString();
+  },16);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SENTINEL PLAN
+// ═══════════════════════════════════════════════════════════
+function rSentinel(g){
+  g.style.gridTemplateColumns = '190px 1fr 250px';
+  g.style.gridTemplateRows = '100px 1fr 1fr';
+
+  // stat
+  const sp = mkPanel('Threats Blocked Today');
+  sp.innerHTML += `<div class="n-big" id="sc-bl">0</div><div class="n-label">blocked</div><div class="n-delta delta-up" id="sc-bl-d">+0 last hour</div>`;
+  g.appendChild(sp);
+
+  // log (span 2 rows)
+  const lp = mkLogPanel('Live Threat Log', 'grid-row:1/3;grid-column:2');
+  g.appendChild(lp);
+
+  // layers (span 2 rows)
+  const lvp = mkPanel('Active Defence Layers', 'grid-row:1/3;grid-column:3');
+  lvp.appendChild(mkLayerDots(100, 30));
+  lvp.innerHTML += `<div style="font-size:11px;margin-top:8px;color:var(--muted);font-family:var(--f-mono)"><span style="color:var(--cyan)">30</span> / 100 active layers</div>`;
+  g.appendChild(lvp);
+
+  // rps
+  const rp = mkPanel('Requests / min');
+  rp.innerHTML += `<div class="n-big" id="sc-rps" style="color:var(--cyan)">0</div><div class="n-label">current rate</div>`;
+  g.appendChild(rp);
+
+  // geo
+  const gp = mkPanel('Top Blocked Regions');
+  gp.appendChild(mkGeo(4)); g.appendChild(gp);
+
+  // waf
+  const wp = mkPanel('WAF Status');
+  wp.innerHTML += `<div class="pind">Sentinel</div>`;
+  wp.appendChild(mkProg([
+    {n:'SQLi Protection',v:100},{n:'XSS Protection',v:100},
+    {n:'Rate Limiter',v:87,c:'var(--cyan)'},{n:'DDoS Basic',v:60,c:'var(--amber)'},
+  ])); g.appendChild(wp);
+
+  startLog(); startCtr('sentinel'); animNum('sc-bl',2847); animNum('sc-rps',342);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PHANTOM PLAN
+// ═══════════════════════════════════════════════════════════
+function rPhantom(g){
+  g.style.gridTemplateColumns = '185px 1fr 1fr 240px';
+  g.style.gridTemplateRows = '88px 1fr 1fr';
+
+  // 4 stats
+  [{lbl:'Threats Blocked',id:'sc-bl',c:'red',v:8421},
+   {lbl:'IPs Analyzed',id:'sc-ip',c:'cyan',v:41230},
+   {lbl:'Patterns Learned',id:'sc-ab',c:'green',v:143},
+   {lbl:'Response Time',id:'sc-rt',c:'green',raw:'<1ms'}].forEach(s=>{
+    const p = mkPanel(s.lbl);
+    const v = document.createElement('div');
+    v.id = s.id; v.className = 'n-big'; v.style.color = `var(--${s.c})`;
+    v.textContent = s.raw||'0'; p.appendChild(v); g.appendChild(p);
+    if(!s.raw) animNum(s.id, s.v);
+  });
+
+  // log span 2
+  g.appendChild(mkLogPanel('Live Threat Log','grid-row:2/4;grid-column:1'));
+
+  // IP intel
+  const ip = mkPanel('IP Intelligence Engine','grid-row:2;grid-column:2');
+  ip.appendChild(mkIpPlats([
+    {n:'Abuse Intel',s:'CLEAN',c:'s-ok',f:'fc-g',p:0},
+    {n:'Malware Scan',s:'CLEAN',c:'s-ok',f:'fc-g',p:0},
+    {n:'Threat Exchange',s:'RISKY',c:'s-wn',f:'fc-a',p:65},
+    {n:'Shodan Port Intel',s:'DANGER',c:'s-bd',f:'fc-r',p:100},
+    {n:'Geo Intel',s:'WARN',c:'s-wn',f:'fc-a',p:45},
+    {n:'CrowdSec',s:'CLEAN',c:'s-ok',f:'fc-g',p:0},
+  ]));
+  ip.innerHTML += `<div style="margin-top:6px;font-size:10px;font-family:var(--f-mono)">Safe ratio: <span style="color:var(--amber);font-weight:700">0.54</span> → <span style="color:var(--amber)">⚠ SUSPICIOUS</span></div>`;
+  g.appendChild(ip);
+
+  // TOR/VPN
+  const tv = mkPanel('TOR · VPN · Proxy','grid-row:2;grid-column:3');
+  tv.innerHTML += `<div style="display:flex;flex-direction:column;gap:6px;flex:1">
+    ${[['TOR Exit Nodes','ph-tor',8,'red'],['VPN Services','ph-vpn',12,'amber'],['Proxy IPs','ph-prx',4,'cyan']].map(([l,id,v,c])=>`
+    <div style="display:flex;justify-content:space-between;padding:6px 8px;border:1px solid rgba(255,255,255,.05);border-radius:4px;background:rgba(0,229,255,.02)">
+      <span style="font-size:9px;color:var(--muted);font-family:var(--f-mono)">${l} Blocked</span>
+      <span style="font-weight:700;color:var(--${c});font-family:var(--f-mono)" id="${id}">0</span>
+    </div>`).join('')}
+    <div style="margin-top:6px;font-size:9px;color:var(--muted);font-family:var(--f-mono)">PTR Analysis: <span style="color:var(--red)">5 SUSPICIOUS</span> today</div>
+  </div>`;
+  g.appendChild(tv);
+  setTimeout(()=>{animNum('ph-tor',847);animNum('ph-vpn',312);animNum('ph-prx',1204);},300);
+
+  // layers
+  const lp = mkPanel('Defence Layers','grid-row:2;grid-column:4');
+  lp.appendChild(mkLayerDots(100,70));
+  lp.innerHTML += `<div style="font-size:11px;margin-top:8px;color:var(--muted);font-family:var(--f-mono)"><span style="color:var(--cyan)">70</span> / 100 active</div>`;
+  g.appendChild(lp);
+
+  // geo
+  const gp = mkPanel('Geo Blocks','grid-row:3;grid-column:2');
+  gp.appendChild(mkGeo(6)); g.appendChild(gp);
+
+  // waf
+  const wp = mkPanel('Full WAF — OWASP Top 10','grid-row:3;grid-column:3');
+  wp.appendChild(mkProg([
+    {n:'SQLi / NoSQLi',v:100},{n:'XSS Reflected/Stored',v:100},
+    {n:'SSRF / CSRF',v:100},{n:'Command Injection',v:100},
+    {n:'XXE / IDOR',v:100},{n:'DDoS Advanced',v:100},
+  ])); g.appendChild(wp);
+
+  // TG alerts
+  const tg = mkPanel('Telegram Alerts · @gpiwd_alerts','grid-row:3;grid-column:4');
+  tg.innerHTML += `<div style="display:flex;flex-direction:column;gap:4px;flex:1;font-family:var(--f-mono)">
+    <div style="font-size:9px;padding:5px 8px;border-left:2px solid var(--red);color:var(--muted);border-radius:0 4px 4px 0;background:rgba(255,51,85,.04)">🔴 <span style="color:var(--red)">BLOCK</span> 185.220.101.47 · SQLi</div>
+    <div style="font-size:9px;padding:5px 8px;border-left:2px solid var(--amber);color:var(--muted);border-radius:0 4px 4px 0;background:rgba(255,183,0,.04)">⚠️ <span style="color:var(--amber)">WARN</span> 103.25.8.15 · Rate limit</div>
+    <div style="font-size:9px;padding:5px 8px;border-left:2px solid var(--purple);color:var(--muted);border-radius:0 4px 4px 0;background:rgba(168,85,247,.04)">🤖 <span style="color:var(--purple)">AI</span> 847 IPs banned cluster</div>
+    <div style="margin-top:4px;font-size:9px;color:var(--muted)"><span style="color:var(--green)">●</span> Bot connected · SLA 4 jam</div>
+  </div>`;
+  g.appendChild(tg);
+
+  startLog(); startCtr('phantom');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AEGIS PLAN
+// ═══════════════════════════════════════════════════════════
+function rAegis(g){
+  g.style.gridTemplateColumns = '175px 1fr 1fr 1fr 210px';
+  g.style.gridTemplateRows = '78px 1fr 1fr';
+
+  // 5 microstats
+  [{l:'Blocked',id:'sc-bl',c:'red',v:18492},
+   {l:'IPs Scanned',id:'sc-ip',c:'cyan',v:98400},
+   {l:'Antibodi',id:'sc-ab',c:'green',v:2847},
+   {l:'Honeypot Hits',id:'sc-hp',c:'amber',v:47},
+   {l:'NK Strikes',id:'sc-nk',c:'purple',v:12}].forEach(s=>{
+    const p = mkPanel(s.l);
+    const v = document.createElement('div');
+    v.id = s.id; v.style.cssText=`font-family:var(--f-dsp);font-size:clamp(20px,2vw,34px);font-weight:900;line-height:1;color:var(--${s.c})`;
+    v.textContent='0'; p.appendChild(v); g.appendChild(p); animNum(s.id,s.v);
+  });
+
+  // log span 2
+  g.appendChild(mkLogPanel('Live Threat Log (100 Layers)','grid-row:2/4;grid-column:1'));
+
+  // AISURU immune
+  const ai = mkPanel('AISURU-GAS Immune System','grid-row:2;grid-column:2');
+  ai.appendChild(mkImmune([
+    {n:'Neutrofil',st:'ACTIVE',sub:'<1ms',cls:'ok',p:'g'},
+    {n:'Makrofag',st:'ARMED',sub:'47 trapped',cls:'fire',p:'p'},
+    {n:'Sel T',st:'LEARNING',sub:'12 patterns',cls:'ok',p:'g'},
+    {n:'Sel B',st:'PRODUCING',sub:'3 antibodi',cls:'fire',p:'p'},
+    {n:'NK Cell',st:'STANDBY',sub:'Ready',cls:'ok',p:'g'},
+    {n:'Memory DB',st:'SYNCED',sub:'2,847 rec',cls:'ok',p:'g'},
+  ])); g.appendChild(ai);
+
+  // honeypot
+  const hp = mkPanel('Honeypot Engine','grid-row:2;grid-column:3');
+  const hl = document.createElement('div'); hl.className = 'hplog';
+  HONEY.forEach(e=>{
+    hl.innerHTML += `<div class="hp-e"><span class="hv">${e.m}</span> ${e.p}<br><span>→ ${e.a}</span></div>`;
+  }); hp.appendChild(hl); g.appendChild(hp);
+
+  // NK counter
+  const nk = mkPanel('NK Cell — Counter-Attack','grid-row:2;grid-column:4');
+  nk.innerHTML += `<div style="display:flex;flex-direction:column;gap:6px;flex:1">
+    ${[['TARPIT','nk-tp','0 attackers','purple'],['MISINFO','nk-ms','0 fed','amber'],['LOOP REDIRECT','nk-lr','0 looped','red']].map(([l,id,v,c])=>`
+    <div style="padding:8px;border:1px solid rgba(255,255,255,.06);border-radius:4px;background:rgba(0,229,255,.02)">
+      <div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--f-mono)">${l}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--${c});font-family:var(--f-mono)" id="${id}">${v}</div>
+    </div>`).join('')}
+  </div>`; g.appendChild(nk);
+  startNk();
+
+  // 100 layer vis
+  const lp = mkPanel('100-Layer Defence','grid-row:2;grid-column:5');
+  lp.appendChild(mkLayerDots(100,100,[[30,'var(--cyan)'],[70,'var(--green)'],[100,'var(--purple)']]));
+  lp.innerHTML += `<div style="font-size:9px;margin-top:6px;color:var(--muted);font-family:var(--f-mono)"><span style="color:var(--cyan)">■</span> Core <span style="color:var(--green)">■</span> AI <span style="color:var(--purple)">■</span> Custom</div>`;
+  g.appendChild(lp);
+
+  // IP Intel
+  const ip = mkPanel('IP Intelligence (6 Platforms)','grid-row:3;grid-column:2');
+  ip.appendChild(mkIpPlats([
+    {n:'Abuse Intel',s:'CLEAN',c:'s-ok',f:'fc-g',p:0},
+    {n:'Malware Scan',s:'DANGER',c:'s-bd',f:'fc-r',p:100},
+    {n:'Threat Exchange',s:'RISKY',c:'s-wn',f:'fc-a',p:65},
+    {n:'Shodan',s:'WARN',c:'s-wn',f:'fc-a',p:45},
+    {n:'Geo Intel',s:'CLEAN',c:'s-ok',f:'fc-g',p:0},
+    {n:'CrowdSec',s:'DANGER',c:'s-bd',f:'fc-r',p:88},
+  ]));
+  ip.innerHTML += `<div style="margin-top:4px;font-size:10px;font-family:var(--f-mono)">Safe ratio: <span style="color:var(--red);font-weight:700">0.28</span> → <span style="color:var(--red)">⛔ BLOCKED</span></div>`;
+  g.appendChild(ip);
+
+  // WAF + custom
+  const wp = mkPanel('WAF + Custom Rules','grid-row:3;grid-column:3');
+  wp.appendChild(mkProg([
+    {n:'Full OWASP Top 10',v:100},{n:'Custom GAS Rules',v:100,c:'var(--cyan)'},
+    {n:'Zero-Day Patterns',v:94},{n:'mTLS Internal',v:100},{n:'Port Analysis',v:100},
+  ])); g.appendChild(wp);
+
+  // Geo + WA
+  const gp = mkPanel('Geo Blocks + WA Support','grid-row:3;grid-column:4');
+  gp.appendChild(mkGeo(4));
+  gp.innerHTML += `<div style="margin-top:8px;font-size:9px;padding:5px 8px;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.15);border-radius:4px;font-family:var(--f-mono)"><span style="color:var(--green)">●</span> WA Support: <span style="color:var(--green)">ONLINE</span> · SLA 4 jam</div>`;
+  g.appendChild(gp);
+
+  // Uptime
+  const up = mkPanel('Uptime · 99.9% SLA','grid-row:3;grid-column:5');
+  up.innerHTML += `<div style="flex:1;display:flex;flex-direction:column;gap:8px">
+    <div style="text-align:center"><div style="font-family:var(--f-dsp);font-size:48px;font-weight:900;color:var(--green);line-height:1">99.9%</div><div style="font-size:9px;color:var(--muted);letter-spacing:2px;font-family:var(--f-mono)">UPTIME LAST 30 DAYS</div></div>
+    <canvas id="spark" class="spark" height="38"></canvas>
+    <div style="font-size:9px;color:var(--muted);font-family:var(--f-mono)">Last incident: <span style="color:var(--green)">None</span></div>
+    <div style="font-size:9px;color:var(--muted);font-family:var(--f-mono)">Circuit breaker: <span style="color:var(--green)">CLOSED</span></div>
+  </div>`;
+  g.appendChild(up);
+  setTimeout(drawSpark,120);
+
+  startLog(); startCtr('aegis');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  OBSIDIAN PLAN
+// ═══════════════════════════════════════════════════════════
+function rObsidian(g){
+  g.style.gridTemplateColumns = '155px 1fr 1fr 1fr 1fr 195px';
+  g.style.gridTemplateRows = '78px 1fr 1fr';
+
+  // 6 microstats
+  [{l:'Blocked',id:'sc-bl',c:'red',v:847291},
+   {l:'IPs Scanned',id:'sc-ip',c:'cyan',v:4200000},
+   {l:'Antibodi DB',id:'sc-ab',c:'green',v:14203},
+   {l:'AI Reports',id:'sc-ai',c:'purple',v:47},
+   {l:'HA Nodes',id:'sc-ha',c:'green',raw:'2/2 Online'},
+   {l:'NK Strikes',id:'sc-nk',c:'amber',v:312}].forEach(s=>{
+    const p = mkPanel(s.l);
+    const v = document.createElement('div');
+    v.id = s.id; v.style.cssText=`font-family:var(--f-dsp);font-size:clamp(18px,1.8vw,32px);font-weight:900;line-height:1;color:var(--${s.c})`;
+    v.textContent = s.raw||'0'; p.appendChild(v); g.appendChild(p);
+    if(!s.raw) animNum(s.id, s.v);
+  });
+
+  // Log span 2
+  g.appendChild(mkLogPanel('Live Threat Log — 100+ Layers','grid-row:2/4;grid-column:1'));
+
+  // AISURU full
+  const aisuru = mkPanel('AISURU-GAS Full Immune System','grid-row:2;grid-column:2');
+  aisuru.appendChild(mkImmune([
+    {n:'Neutrofil',st:'ACTIVE',sub:'<1ms',cls:'ok',p:'g'},
+    {n:'Makrofag',st:'ARMED',sub:'47 honeypots',cls:'fire',p:'p'},
+    {n:'Sel T',st:'LEARNING',sub:'24 patterns',cls:'ok',p:'g'},
+    {n:'Sel B',st:'PRODUCING',sub:'8 antibodi',cls:'fire',p:'p'},
+    {n:'NK Cell',st:'STRIKING',sub:'12 attacks',cls:'alrt',p:'r'},
+    {n:'Memory DB',st:'SYNCED',sub:'14,203 rec',cls:'ok',p:'g'},
+  ])); g.appendChild(aisuru);
+
+  // Claude AI
+  const aip = mkPanel('Claude AI — Threat Reasoner','grid-row:2;grid-column:3');
+  const al = document.createElement('div'); al.className = 'ailog'; al.id = 'ailog';
+  AI_EVENTS.forEach(e=>{
+    const cv={BLOCK:'var(--red)',WARN:'var(--amber)',OK:'var(--green)'}[e.v];
+    al.innerHTML += `<div class="ai-e"><span class="ai-v" style="color:${cv}">[${e.v}]</span> <span style="font-size:9px;color:var(--muted)">conf:${e.c}%</span><br>${e.msg}</div>`;
+  });
+  aip.appendChild(al); g.appendChild(aip);
+
+  // Multi-Cloud HA
+  const ha = mkPanel('Multi-Cloud Failover (HA)','grid-row:2;grid-column:4');
+  const ng = document.createElement('div'); ng.className = 'ngrid';
+  [{n:'Primary Cloud',l:'SG — Singapore',ping:'2ms',cls:'pri',s:'ACTIVE',sc:'s-on'},
+   {n:'Backup Cloud',l:'JP — Tokyo',ping:'8ms',cls:'sby',s:'STANDBY',sc:'s-sb'},
+   {n:'CDN Edge US',l:'LA — Los Angeles',ping:'120ms',cls:'sby',s:'READY',sc:'s-sb'},
+   {n:'CDN Edge EU',l:'EU — Frankfurt',ping:'95ms',cls:'sby',s:'READY',sc:'s-sb'}].forEach(n=>{
+    ng.innerHTML += `<div class="nd ${n.cls}"><div class="nd-n">${n.n}</div><div class="nd-s ${n.sc}">${n.s}</div><div class="nd-p">${n.l} · ${n.ping}</div></div>`;
+  });
+  ha.appendChild(ng);
+  ha.innerHTML += `<div style="font-size:9px;color:var(--muted);margin-top:8px;font-family:var(--f-mono)"><span style="color:var(--green)">●</span> Auto-failover 30s · Last test 2h ago</div>`;
+  g.appendChild(ha);
+
+  // Zero Trust
+  const zt = mkPanel('Zero-Trust Architecture','grid-row:2;grid-column:5');
+  zt.innerHTML += `<div style="display:flex;flex-direction:column;gap:6px;flex:1">
+    ${['Identity Verification','Device Trust Check','mTLS All Services','Micro-segmentation','Session Validation','Privilege Access Ctrl','Network Isolation','Audit Trail 100%'].map(i=>`<div style="display:flex;align-items:center;gap:8px;font-size:10px;font-family:var(--f-mono)"><span style="color:var(--green);flex-shrink:0">✓</span><span style="color:var(--muted)">${i}</span></div>`).join('')}
+  </div>`; g.appendChild(zt);
+
+  // 120+ layer
+  const lvp = mkPanel('120+ Custom Layers','grid-row:2;grid-column:6');
+  lvp.appendChild(mkLayerDots(120,120,[[30,'var(--cyan)'],[70,'var(--green)'],[100,'var(--purple)'],[120,'var(--amber)']]));
+  lvp.innerHTML += `<div style="font-size:9px;margin-top:6px;color:var(--muted);font-family:var(--f-mono)"><span style="color:var(--cyan)">■</span> Core <span style="color:var(--green)">■</span> AI <span style="color:var(--purple)">■</span> Immune <span style="color:var(--amber)">■</span> Custom</div>`;
+  g.appendChild(lvp);
+
+  // AI Security Report
+  const ar = mkPanel('Monthly AI Security Report','grid-row:3;grid-column:2');
+  ar.innerHTML += `<div style="display:flex;flex-direction:column;gap:6px;flex:1;font-size:10px;font-family:var(--f-mono)">
+    <div style="color:var(--purple);font-weight:700;font-size:12px">📊 April 2026 Summary</div>
+    ${[['Total blocked','847,291','white'],['New attack patterns','23 detected','amber'],['Zero-day signatures','4 caught','red'],['Uptime achieved','99.97%','green'],['AI rules generated','47 new','purple']].map(([k,v,c])=>`<div style="color:var(--muted)">${k}: <span style="color:var(--${c})">${v}</span></div>`).join('')}
+    <div style="margin-top:6px;padding:6px 8px;background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.15);border-radius:4px;font-size:9px;color:var(--purple)">Next: May 1 · Email + dashboard</div>
+  </div>`; g.appendChild(ar);
+
+  // IP Intel full
+  const ip = mkPanel('IP Intelligence (6 Platforms)','grid-row:3;grid-column:3');
+  ip.appendChild(mkIpPlats([
+    {n:'Abuse Intel',s:'DANGER',c:'s-bd',f:'fc-r',p:100},
+    {n:'Malware Scan',s:'DANGER',c:'s-bd',f:'fc-r',p:95},
+    {n:'Threat Exchange',s:'DANGER',c:'s-bd',f:'fc-r',p:88},
+    {n:'Shodan',s:'HIGH',c:'s-bd',f:'fc-r',p:80},
+    {n:'CrowdSec',s:'DANGER',c:'s-bd',f:'fc-r',p:100},
+    {n:'Geo Intel',s:'BLOCKED',c:'s-bd',f:'fc-r',p:100},
+  ]));
+  ip.innerHTML += `<div style="margin-top:4px;font-size:10px;font-family:var(--f-mono)">Safe ratio: <span style="color:var(--red);font-weight:700">0.04</span> → <span style="color:var(--red)">⛔ CRITICAL BLOCK</span></div>`;
+  g.appendChild(ip);
+
+  // 3-2-1 Backup
+  const bk = mkPanel('3-2-1 Backup Strategy','grid-row:3;grid-column:4');
+  bk.innerHTML += `<div style="display:flex;flex-direction:column;gap:6px;flex:1">
+    ${[[3,'3 COPIES','3/3 Synced','green','4 min ago'],
+       [2,'2 MEDIA','NVMe + Cold','cyan','Healthy'],
+       [1,'1 OFFSITE','JP Region','purple','RPO 1h · RTO 15m']].map(([,t,v,c,s])=>`
+    <div style="padding:7px 10px;border:1px solid rgba(255,255,255,.06);border-radius:4px;background:rgba(0,229,255,.02)">
+      <div style="font-size:9px;color:var(--muted);font-family:var(--f-mono)">${t}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--${c});font-family:var(--f-mono)">${v}</div>
+      <div style="font-size:9px;color:var(--muted);font-family:var(--f-mono)">${s}</div>
+    </div>`).join('')}
+  </div>`; g.appendChild(bk);
+
+  // Priority support
+  const sup = mkPanel('Priority 24/7 Support','grid-row:3;grid-column:5');
+  sup.innerHTML += `<div style="display:flex;flex-direction:column;gap:6px;flex:1;font-family:var(--f-mono)">
+    <div style="display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:ppg 2s infinite"></div><span style="font-size:10px;color:var(--white)">Engineer: <span style="color:var(--green)">ONLINE</span></span></div>
+    <div style="font-size:9px;color:var(--muted)">Response SLA: <span style="color:var(--green)">1 Jam</span></div>
+    <div style="padding:6px 8px;border:1px solid rgba(255,255,255,.06);border-radius:4px;font-size:9px;color:var(--muted)">🎫 Last ticket: 23 min ago<br>Status: <span style="color:var(--green)">Resolved</span></div>
+    <div style="font-size:9px;color:var(--muted)">Onboarding: <span style="color:var(--cyan)">Completed</span></div>
+    <div style="font-size:9px;color:var(--muted)">Next check-in: <span style="color:var(--amber)">Tomorrow 09:00</span></div>
+    <div style="font-size:9px;color:var(--muted)">SLA 99.9%: <span style="color:var(--green)">✓ GUARANTEED</span></div>
+  </div>`; g.appendChild(sup);
+
+  // Uptime
+  const up = mkPanel('Uptime · 99.97% SLA','grid-row:3;grid-column:6');
+  up.innerHTML += `<div style="flex:1;display:flex;flex-direction:column;gap:8px">
+    <div style="text-align:center"><div style="font-family:var(--f-dsp);font-size:42px;font-weight:900;color:var(--green);line-height:1">99.97%</div><div style="font-size:9px;color:var(--muted);letter-spacing:2px;font-family:var(--f-mono)">APRIL 2026</div></div>
+    <canvas id="spark" class="spark" height="38"></canvas>
+    <div style="font-size:9px;color:var(--muted);font-family:var(--f-mono)">Incidents: <span style="color:var(--green)">0 this month</span></div>
+    <div style="font-size:9px;color:var(--muted);font-family:var(--f-mono)">HA tests: <span style="color:var(--green)">3 passed</span></div>
+    <div style="font-size:9px;color:var(--muted);font-family:var(--f-mono)">CB status: <span style="color:var(--green)">All CLOSED</span></div>
+  </div>`; g.appendChild(up);
+  setTimeout(drawSpark,120);
+
+  startLog(); startCtr('obsidian'); startNk(); startAiLog();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LIVE DATA FEEDS
+// ═══════════════════════════════════════════════════════════
+function startLog(){
+  const f = document.getElementById('logfeed'); if(!f) return;
+  addLog(f);
+  _logTick = setInterval(()=>{
+    const ff = document.getElementById('logfeed');
+    if(ff) addLog(ff); else clearInterval(_logTick);
+  }, 850 + Math.random()*600);
+}
+
+const CTR_TARGETS = {
+  sentinel:{bl:2847,rps:342},
+  phantom:{bl:8421,ip:41230,ab:143},
+  aegis:{bl:18492,ip:98400,ab:2847,hp:47},
+  obsidian:{bl:847291,ip:4200000,ab:14203,hp:312},
+};
+function startCtr(plan){
+  const t = CTR_TARGETS[plan];
+  _ctrTick = setInterval(()=>{
+    const bump=(id,n=1)=>{const e=document.getElementById(id);if(e){const c=parseInt(e.textContent.replace(/,/g,''))||0;e.textContent=(c+n).toLocaleString();}};
+    if(Math.random()>.35) bump('sc-bl', Math.floor(Math.random()*3+1));
+    if(t.ip && Math.random()>.4) bump('sc-ip', Math.floor(Math.random()*8+2));
+    if(t.ab && Math.random()>.88) bump('sc-ab');
+    if(t.hp && Math.random()>.9) bump('sc-hp');
+    if(t.rps){const e=document.getElementById('sc-rps');if(e)e.textContent=(t.rps+Math.floor(Math.random()*60-30)).toLocaleString();}
+  }, 1300);
+}
+
+function startNk(){
+  let tp=0,ms=0,lr=0;
+  setInterval(()=>{
+    const bump=(id,v)=>{const e=document.getElementById(id);if(e){tp+=v;e.textContent=tp+(id==='nk-tp'?' attackers':id==='nk-ms'?' fed':' looped');}};
+    if(Math.random()>.7){tp+=Math.floor(Math.random()*2+1);const e=document.getElementById('nk-tp');if(e)e.textContent=tp+' attackers';}
+    if(Math.random()>.8){ms++;const e=document.getElementById('nk-ms');if(e)e.textContent=ms+' fed';}
+    if(Math.random()>.85){lr++;const e=document.getElementById('nk-lr');if(e)e.textContent=lr+' looped';}
+    if(Math.random()>.7){const e=document.getElementById('sc-nk');if(e){const c=parseInt(e.textContent.replace(/,/g,''))||0;e.textContent=(c+1).toLocaleString();}}
+  }, 1900);
+}
+
+function startAiLog(){
+  let idx=0;
+  _aiTick = setInterval(()=>{
+    const al=document.getElementById('ailog'); if(!al) return;
+    const e = AI_EVENTS[idx++ % AI_EVENTS.length];
+    const cv={BLOCK:'var(--red)',WARN:'var(--amber)',OK:'var(--green)'}[e.v];
+    const el=document.createElement('div'); el.className='ai-e';
+    el.innerHTML=`<span class="ai-v" style="color:${cv}">[${e.v}]</span> <span style="font-size:9px;color:var(--muted)">conf:${e.c}%</span><br>${e.msg}`;
+    al.insertBefore(el,al.firstChild);
+    while(al.children.length>6) al.removeChild(al.lastChild);
+  }, 3800);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SPARKLINE CANVAS
+// ═══════════════════════════════════════════════════════════
+function drawSpark(){
+  const c = document.getElementById('spark'); if(!c) return;
+  const ctx = c.getContext('2d');
+  const dpr = window.devicePixelRatio||1;
+  c.width = c.offsetWidth*dpr; c.height = 76;
+  const pts = Array.from({length:32},()=>95+Math.random()*5);
+  const isDark = document.documentElement.getAttribute('data-theme')==='dark';
+  const lineColor = isDark ? 'rgba(0,255,136,.65)' : 'rgba(0,153,68,.65)';
+  const fillColor = isDark ? 'rgba(0,255,136,.07)' : 'rgba(0,153,68,.06)';
+  ctx.strokeStyle=lineColor; ctx.lineWidth=1.5*dpr;
+  ctx.shadowColor=lineColor; ctx.shadowBlur=6;
+  ctx.beginPath();
+  pts.forEach((v,i)=>{
+    const x=(i/(pts.length-1))*c.width;
+    const y=((100-v)/8)*c.height;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  ctx.fillStyle=fillColor; ctx.shadowBlur=0;
+  ctx.lineTo(c.width,c.height); ctx.lineTo(0,c.height); ctx.fill();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ALERT TICKER
+// ═══════════════════════════════════════════════════════════
+const TICKERS = {
+  sentinel:[['a-g','✓ GPIWD Sentinel — 30 layers active'],['a-r','⚠ 127 SQLi blocked today'],['a-g','✓ TLS 1.3 — cert valid'],['a-a','● Rate limiter: 23 triggers'],['a-c','↑ Upgrade to Phantom for AI Brain']],
+  phantom:[['a-g','✓ GPIWD Phantom — 70 layers'],['a-r','🔴 1,247 threats · 3 TOR nodes'],['a-p','● Claude AI active'],['a-c','● AISURU learning · 143 antibodi'],['a-a','⚠ 45.142.212.100 VPN flagged']],
+  aegis:[['a-g','✓ GPIWD Aegis — 100 layers FULL'],['a-r','🔴 18,492 blocked · 47 honeypots'],['a-g','✓ NK Cell · 12 counter-attacks'],['a-c','● 2,847 antibodi in memory'],['a-a','⚠ DDoS mitigated · 0ms downtime']],
+  obsidian:[['a-g','✓ GPIWD Obsidian — 120+ custom layers'],['a-r','🔴 847,291 blocked · 0 false positives'],['a-g','✓ HA active · Primary SG + Backup JP'],['a-c','● Zero-Trust · All 8 policies enforced'],['a-p','● NK FIRING · 12 tarpit · 8 misinfo']],
+};
+function setTicker(plan){
+  const strip = document.getElementById('astrip');
+  const tick = document.getElementById('atick');
+  const items = TICKERS[plan];
+  let html = '';
+  for(let k=0;k<2;k++) items.forEach(([cls,msg])=>{html+=`<span class="${cls}">${msg}</span><span class="as">///</span>`;});
+  tick.innerHTML = html;
+  strip.className = 'astrip' + (plan==='sentinel'?' ok':'');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MOBILE NAV SECTION SCROLL
+// ═══════════════════════════════════════════════════════════
+function mNav(sec, btn){
+  document.querySelectorAll('.bn').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  // On mobile, scroll to the section panel that matches
+  const dash = document.getElementById('dash');
+  if(!dash) return;
+  const panels = dash.querySelectorAll('.panel');
+  const map = {log:0, stats:1, immune:2, ai:3, config:4};
+  const idx = map[sec]||0;
+  if(panels[idx]) panels[idx].scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ═══════════════════════════════════════════════════════════
+//  REAL API POLLING (when online)
+// ═══════════════════════════════════════════════════════════
+async function pollApi(){
+  const token = getToken();
+  if(!token || token==='gpiwd-demo-token') return;
+  try {
+    const r = await fetch(`${GW}/gpiwd/stats`, {
+      headers:{'Authorization':'Bearer '+token},
+      signal: AbortSignal.timeout(5000)
+    });
+    if(r.ok){
+      const d = await r.json();
+      // Update live numbers if API returns real data
+      if(d.blocked_today){const e=document.getElementById('sc-bl');if(e)e.textContent=Number(d.blocked_today).toLocaleString();}
+      if(d.ips_analyzed){const e=document.getElementById('sc-ip');if(e)e.textContent=Number(d.ips_analyzed).toLocaleString();}
+    }
+  } catch {/* demo mode — ignore */}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+initTheme();
+checkAutoLogin();
+window.addEventListener('resize',()=>{
+  if(['aegis','obsidian'].includes(currentPlan)) setTimeout(drawSpark,120);
+});
+</script>
+</body>
+</html>
